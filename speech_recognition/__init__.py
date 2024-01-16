@@ -502,7 +502,8 @@ class Recognizer(AudioSource):
                     if self.dynamic_energy_threshold:
                         damping = self.dynamic_energy_adjustment_damping ** seconds_per_buffer  # account for different chunk sizes and rates
                         target_energy = energy * self.dynamic_energy_ratio
-                        self.energy_threshold = self.energy_threshold * damping + target_energy * (1 - damping)
+                        if target_energy > 15:
+                            self.energy_threshold = self.energy_threshold * damping + target_energy * (1 - damping) 
             else:
                 # read audio input until the hotword is said
                 snowboy_location, snowboy_hot_word_files = snowboy_configuration
@@ -544,7 +545,7 @@ class Recognizer(AudioSource):
 
         return AudioData(frame_data, source.SAMPLE_RATE, source.SAMPLE_WIDTH)
 
-    def listen_in_background(self, source, callback, phrase_time_limit=None):
+    def listen_in_background(self, source, callback, activated_callback, phrase_time_limit=None):
         """
         Spawns a thread to repeatedly record phrases from ``source`` (an ``AudioSource`` instance) into an ``AudioData`` instance and call ``callback`` with that ``AudioData`` instance as soon as each phrase are detected.
 
@@ -563,9 +564,13 @@ class Recognizer(AudioSource):
                     try:  # listen for 1 second, then check again if the stop function has been called
                         audio = self.listen(s, 1, phrase_time_limit)
                     except WaitTimeoutError:  # listening timed out, just try again
+                        activated_callback(False)
                         pass
+                    except Exception as e:
+                        print(e)
                     else:
                         if running[0]: callback(self, audio)
+                print('stopped running')
 
         def stopper(wait_for_stop=True):
             running[0] = False
